@@ -1,0 +1,17 @@
+node_modules/
+.npm/
+.yarn/
+.vscode/
+.env
+.env.*
+!.env.example
+/dist
+package-lock.json
+
+# Local logs and TypeScript build cache
+*.log
+*.tsbuildinfo
+
+# Windows Explorer metadata
+Thumbs.db
+Desktop.ini
