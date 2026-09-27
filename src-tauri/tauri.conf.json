@@ -13,8 +13,17 @@
     "windows": [
       {
         "title": "Codex HUD",
-        "width": 800,
-        "height": 600
+        "width": 319.2,
+        "height": 302.4,
+        "visible": false,
+        "transparent": true,
+        "theme": "Light",
+        "decorations": false,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true
       }
     ],
     "security": {
