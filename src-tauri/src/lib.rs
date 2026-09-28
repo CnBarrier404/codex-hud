@@ -1,3 +1,5 @@
+mod usage;
+
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -61,7 +63,8 @@ fn report(result: tauri::Result<()>) {
 
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![mica_enabled])
+        .manage(usage::UsageState::default())
+        .invoke_handler(tauri::generate_handler![mica_enabled, usage::read_usage])
         .setup(|app| {
             let window = app
                 .get_webview_window("main")
