@@ -31,9 +31,9 @@ fn show_panel(app: &tauri::AppHandle, anchor: Option<PhysicalPosition<f64>>) -> 
     if let Some(monitor) = monitor {
         let scale = monitor.scale_factor();
         let area = monitor.work_area();
-        let gap = (8.4 * scale).round() as i32;
-        let width = (319.2 * scale).round() as u32;
-        let height = (302.4 * scale).round() as u32;
+        let gap = (8.0 * scale).round() as i32;
+        let width = (320.0 * scale).round() as u32;
+        let height = (350.0 * scale).round() as u32;
         let left = area.position.x + gap;
         let top = area.position.y + gap;
         let right = (area.position.x + area.size.width as i32 - width as i32 - gap).max(left);

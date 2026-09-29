@@ -1,14 +1,14 @@
 :root {
-  --space-1: 4.2px;
-  --space-2: 8.4px;
-  --space-3: 12.6px;
-  --space-4: 16.8px;
-  --space-5: 21px;
-  --text-caption: 8.4px;
-  --text-heading: 16.8px;
-  --text-brand: 21px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --text-caption: 12px;
+  --text-heading: 16px;
+  --text-brand: 20px;
   font-family: "Segoe UI", sans-serif;
-  font-size: 12.6px;
+  font-size: 12px;
   color: #202020;
   background: #fff;
   font-synthesis: none;
@@ -49,13 +49,12 @@ html[data-mica="true"] .usage-panel {
   display: flex;
   flex-direction: column;
   padding: var(--space-4);
-  border: 1.05px solid #0000000f;
+  border: thin solid #0000000f;
   background: #fff;
 }
 
 .panel-header,
-.limit-heading,
-.panel-footer {
+.limit-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -65,8 +64,58 @@ html[data-mica="true"] .usage-panel {
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-1);
-  padding-bottom: var(--space-4);
-  border-bottom: 1.05px solid #00000014;
+  padding-bottom: var(--space-1);
+  border-bottom: thin solid #00000014;
+}
+
+.panel-nav {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding: 4px;
+  border-radius: 8px;
+  background: #0000000a;
+}
+
+.panel-nav button {
+  flex: 1;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #707070;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.panel-nav button.active {
+  background: #ffffffc7;
+  color: #202020;
+  font-weight: 600;
+  box-shadow: 0 4px 4px #00000012;
+}
+
+.panel-nav button:focus-visible,
+.text-button:focus-visible,
+.save-button:focus-visible,
+.saved-price button:focus-visible,
+.price-form input:focus-visible {
+  outline: 4px solid #568db1;
+  outline-offset: 0;
+}
+
+.panel-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.panel-content:has(.limits) {
+  display: flex;
+  flex-direction: column;
 }
 
 .account-info {
@@ -93,13 +142,16 @@ h1 {
   font-size: var(--text-brand);
   font-weight: 650;
   letter-spacing: -0.025em;
-  line-height: 25.2px;
+  line-height: 24px;
 }
 
 .limits {
-  display: grid;
-  gap: var(--space-5);
-  padding: var(--space-4) 0;
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
 }
 
 .limit-heading {
@@ -109,21 +161,14 @@ h1 {
 h2 {
   margin: 0;
   font-size: var(--text-heading);
-  line-height: 21px;
+  line-height: 24px;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
-.usage-value {
-  color: #606060;
-  font-size: var(--text-brand);
-  font-variant-numeric: tabular-nums;
-  line-height: 21px;
-}
-
 .usage-track {
-  height: 4.2px;
-  margin: var(--space-2) 0;
+  height: 4px;
+  margin: var(--space-2) 0 var(--space-3);
   border-radius: var(--space-1);
   background: #0000000d;
   overflow: hidden;
@@ -148,7 +193,7 @@ h2 {
   margin: 0 0 var(--space-1);
   color: #707070;
   font-size: var(--text-caption);
-  line-height: 12.6px;
+  line-height: 16px;
   flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -161,15 +206,28 @@ h2 {
 
 .limit-details {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
   margin: 0;
   color: #707070;
   font-size: var(--text-caption);
-  line-height: 12.6px;
+  line-height: 16px;
 }
 
-.limit-details > div {
+.limit-details .quota-details,
+.limit-details .reset-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.limit-details .reset-details {
+  align-items: flex-end;
+}
+
+.quota-details > div,
+.reset-details > div {
   display: flex;
   gap: var(--space-1);
 }
@@ -177,15 +235,204 @@ h2 {
 .limit-details dd {
   margin: 0;
   color: #505050;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
-.panel-footer {
-  justify-content: center;
-  margin-top: auto;
-  gap: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1.05px solid #00000014;
+.analysis-view,
+.prices-view {
+  padding-top: var(--space-2);
+}
+
+.token-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.token-summary > div {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  border: thin solid #00000010;
+  border-radius: 8px;
+  background: #ffffff80;
+}
+
+.token-summary span,
+.model-table,
+.price-heading span,
+.price-form label,
+.token-note,
+.price-message,
+.saved-prices {
   color: #707070;
   font-size: var(--text-caption);
-  line-height: 12.6px;
+}
+
+.token-summary strong {
+  color: #202020;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.analysis-heading,
+.price-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.analysis-heading h2,
+.price-heading h2 {
+  font-size: 12px;
+}
+
+.text-button,
+.saved-price button {
+  border: 0;
+  background: none;
+  color: #326b90;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-caption);
+}
+
+.token-note {
+  margin: var(--space-2) 0 0;
+}
+
+.saved-price > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-table {
+  width: 100%;
+  margin-top: var(--space-2);
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+}
+
+.model-table th,
+.model-table td {
+  overflow: hidden;
+  padding: 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-table th {
+  border-bottom: thin solid #0000001a;
+  color: #505050;
+  font-weight: 600;
+  text-align: left;
+}
+
+.model-table td {
+  border-bottom: thin solid #0000000d;
+  color: #202020;
+  font-variant-numeric: tabular-nums;
+}
+
+.model-table th:first-child,
+.model-table td:first-child {
+  width: 34%;
+  padding-left: 0;
+}
+
+.model-table th:nth-child(2),
+.model-table td:nth-child(2) {
+  width: 19%;
+}
+
+.model-table th:nth-child(3),
+.model-table td:nth-child(3) {
+  width: 27%;
+}
+
+.model-table th:last-child,
+.model-table td:last-child {
+  width: 20%;
+  padding-right: 0;
+  text-align: right;
+}
+
+.model-empty {
+  margin: 0;
+  padding: var(--space-3) 0;
+  color: #707070;
+  font-size: var(--text-caption);
+  text-align: center;
+}
+
+.price-heading {
+  margin-top: 0;
+}
+
+.price-form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.price-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.price-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: thin solid #00000024;
+  border-radius: 4px;
+  background: #ffffffb8;
+  color: #202020;
+  font: inherit;
+  font-size: 12px;
+}
+
+.price-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-2);
+}
+
+.save-button {
+  justify-self: end;
+  padding: 4px var(--space-3);
+  border: 0;
+  border-radius: 4px;
+  background: #326b90;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.price-message {
+  margin: var(--space-1) 0;
+}
+
+.saved-prices {
+  margin-top: var(--space-2);
+  border-top: thin solid #00000014;
+}
+
+.saved-price {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 0;
+  border-bottom: thin solid #0000000d;
+}
+
+.saved-price > span {
+  flex: 1;
 }

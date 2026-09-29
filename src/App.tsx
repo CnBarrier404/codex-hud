@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { clearUsageCache, readUsageCache, saveUsageCache, type UsageSnapshot } from "./usage-cache";
+import AnalysisView from "./AnalysisView";
 import "./App.css";
 
 const limits = [
@@ -10,6 +11,22 @@ const limits = [
 ] as const;
 
 type UsageError = { code: string; message: string };
+type View = "limits" | "analysis";
+const resetTimeFormat = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+function resetDisplay(resetsAt: number, dateOnly: boolean) {
+  const date = new Date(resetsAt * 1000);
+  if (!dateOnly) return resetTimeFormat.format(date);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function percent(value: number) {
   return `${Number(value.toFixed(1))}%`;
@@ -22,27 +39,24 @@ function subscriptionLabel(plan: string | null | undefined) {
 
 function resetCountdown(resetsAt: number | null, now: number) {
   if (resetsAt === null) return "-";
-  const seconds = resetsAt - Math.floor(now / 1000);
-  if (seconds <= 0) return "Refreshing…";
-  const minutes = Math.ceil(seconds / 60);
-  const days = Math.floor(minutes / 1440);
-  const hours = Math.floor((minutes % 1440) / 60);
-  if (days > 0) return `${days}d ${hours}h`;
-  return `${hours}h ${minutes % 60}m`;
+  const remaining = resetsAt - Math.floor(now / 1000);
+  if (remaining <= 0) return "-";
+  const totalMinutes = Math.ceil(remaining / 60);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor(totalMinutes / 60) % 24;
+  const minutes = totalMinutes % 60;
+  const time = `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  return days > 0 ? `${days}d ${time}` : time;
 }
 
 function App() {
+  const [view, setView] = useState<View>("limits");
   const [usage, setUsage] = useState<UsageSnapshot | null>(readUsageCache);
-  const [cached, setCached] = useState(usage !== null);
   const [usageError, setUsageError] = useState<UsageError | null>(null);
-  const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    if (!isTauri()) {
-      setLoading(false);
-      return;
-    }
+    if (!isTauri()) return;
     let active = true;
     let inFlight = false;
     let visible = false;
@@ -51,12 +65,10 @@ function App() {
     const refresh = async () => {
       if (!active || inFlight) return;
       inFlight = true;
-      setLoading(true);
       try {
         const snapshot = await invoke<UsageSnapshot>("read_usage");
         if (active) {
           setUsage(snapshot);
-          setCached(false);
           saveUsageCache(snapshot);
           setUsageError(null);
           setNow(Date.now());
@@ -70,13 +82,11 @@ function App() {
           setUsageError(error);
           if (["login", "auth_mode", "missing", "no_windows"].includes(error.code)) {
             setUsage(null);
-            setCached(false);
             clearUsageCache();
           }
         }
       } finally {
         inFlight = false;
-        if (active) setLoading(false);
       }
     };
     void window.onFocusChanged(({ payload: focused }) => {
@@ -93,7 +103,7 @@ function App() {
       }
     }).catch(() => { void refresh(); });
     const poll = setInterval(() => { if (visible) void refresh(); }, 60_000);
-    const clock = setInterval(() => { if (visible) setNow(Date.now()); }, 1_000);
+    const clock = setInterval(() => setNow(Date.now()), 1_000);
     return () => {
       active = false;
       unlisten?.();
@@ -124,7 +134,7 @@ function App() {
       onContextMenu={(event) => event.preventDefault()}
     >
       <header className="panel-header">
-        <h1 id="app-title">Codex</h1>
+        <h1 id="app-title">Codex HUD</h1>
         <div className="account-info" aria-label="Account and subscription">
           <span className="account-email" title={usage?.account?.email ?? undefined}>
             {usage?.account?.email ?? "-"}
@@ -135,6 +145,17 @@ function App() {
         </div>
       </header>
 
+      <nav className="panel-nav" aria-label="HUD pages">
+        {(["limits", "analysis"] as const).map((page) => (
+          <button className={view === page ? "active" : ""} type="button" key={page}
+            aria-current={view === page ? "page" : undefined} onClick={() => setView(page)}>
+            {page === "limits" ? "Limits" : "Analysis"}
+          </button>
+        ))}
+      </nav>
+
+      <div className="panel-content">
+      {view === "limits" && <>
       <div className="limits">
         {limits.map(({ id, title, key }) => {
           const window = usage?.[key];
@@ -144,10 +165,6 @@ function App() {
             <section className="limit" key={id} aria-labelledby={id}>
               <div className="limit-heading">
                 <h2 id={id}>{title}</h2>
-                <span className="usage-value" title="Remaining quota"
-                  aria-label={remaining === null ? "Usage unavailable" : `${percent(remaining)} remaining`}>
-                  {remaining === null ? "-" : percent(remaining)}
-                </span>
               </div>
               <div className="usage-track" aria-hidden="true">
                 {remaining !== null && (
@@ -157,13 +174,28 @@ function App() {
                 )}
               </div>
               <dl className="limit-details">
-                <div>
-                  <dt>Used</dt>
-                  <dd>{window && !expired ? percent(window.usedPercent) : "-"}</dd>
+                <div className="quota-details">
+                  <div>
+                    <dt>Remaining</dt>
+                    <dd>{remaining === null ? "-" : percent(remaining)}</dd>
+                  </div>
+                  <div>
+                    <dt>Used</dt>
+                    <dd>{window && !expired ? percent(window.usedPercent) : "-"}</dd>
+                  </div>
                 </div>
-                <div>
-                  <dt>Resets in</dt>
-                  <dd>{window ? resetCountdown(window.resetsAt, now) : "-"}</dd>
+                <div className="reset-details">
+                  <div>
+                    <dt>Resets in</dt>
+                    <dd>{window ? resetCountdown(window.resetsAt, now) : "-"}</dd>
+                  </div>
+                  <div>
+                    <dt>Resets at</dt>
+                    <dd title={window?.resetsAt ? new Date(window.resetsAt * 1000).toLocaleString() : undefined}>
+                      {window?.resetsAt && !expired
+                        ? resetDisplay(window.resetsAt, key === "weekly") : "-"}
+                    </dd>
+                  </div>
                 </div>
               </dl>
             </section>
@@ -171,16 +203,15 @@ function App() {
         })}
       </div>
 
-      {(usageError || cached || (loading && !usage)) && (
+      {usageError && (
         <p className="usage-status" role="status" title={usageError?.message}>
-          {usageError ? `${usage ? "Last reading · " : ""}${usageError.message}`
-            : cached ? "Cached · Refreshing…" : "Loading usage…"}
+          {`${usage ? "Last reading · " : ""}${usageError.message}`}
         </p>
       )}
+      </>}
+      {view === "analysis" && <AnalysisView />}
+      </div>
 
-      <footer className="panel-footer">
-        <span>Codex HUD</span>
-      </footer>
     </main>
   );
 }

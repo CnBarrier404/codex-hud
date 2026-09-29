@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Codex HUD",
-        "width": 319.2,
-        "height": 302.4,
+        "width": 320,
+        "height": 350,
         "visible": false,
         "transparent": true,
         "theme": "Light",
