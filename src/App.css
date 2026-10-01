@@ -110,7 +110,39 @@ html[data-mica="true"] .usage-panel {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  scrollbar-width: thin;
+  padding-right: 4px;
+}
+
+.panel-content::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.panel-content::-webkit-scrollbar-track,
+.panel-content::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: #00000020;
+}
+
+.panel-content:hover::-webkit-scrollbar-thumb {
+  background: #00000038;
+}
+
+.panel-content::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .panel-content {
+    scrollbar-width: thin;
+    scrollbar-color: #00000020 transparent;
+  }
 }
 
 .panel-content:has(.limits) {
