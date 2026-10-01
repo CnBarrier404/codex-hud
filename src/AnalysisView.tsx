@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { aggregateAnalysis, type AnalysisSnapshot, type AnalysisRange } from "./analysis-data";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { aggregateAnalysis, type AnalysisRange } from "./analysis-data";
+import { getAnalysisCache, refreshAnalysis, subscribeAnalysisCache } from "./analysis-cache";
 import "./AnalysisView.css";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
@@ -14,40 +16,33 @@ function hourLabel(date: Date) {
 
 export default function AnalysisView() {
   const [range, setRange] = useState<AnalysisRange>(1);
-  const [snapshot, setSnapshot] = useState<AnalysisSnapshot | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { snapshot, loading, error, checkedAt } = useSyncExternalStore(subscribeAnalysisCache, getAnalysisCache);
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const active = useRef(false);
-  const inFlight = useRef(false);
-
-  async function refresh() {
-    if (!isTauri() || inFlight.current) return;
-    inFlight.current = true;
-    setLoading(true);
-    try {
-      const result = await invoke<AnalysisSnapshot>("read_analysis");
-      if (active.current) {
-        setSnapshot(result);
-        setUpdatedAt(new Date());
-        setError(null);
-      }
-    } catch (failure) {
-      if (active.current) setError(typeof failure === "string" ? failure : "Unable to read local sessions. Try again.");
-    } finally {
-      inFlight.current = false;
-      if (active.current) setLoading(false);
-    }
-  }
 
   useEffect(() => {
-    active.current = true;
-    void refresh();
-    return () => { active.current = false; };
+    if (!isTauri()) return;
+    let active = true;
+    let visible = false;
+    let unlisten: (() => void) | undefined;
+    const window = getCurrentWindow();
+    void refreshAnalysis();
+    void window.onFocusChanged(({ payload: focused }) => {
+      visible = focused;
+      if (focused) void refreshAnalysis();
+    }).then((stop) => {
+      if (active) unlisten = stop;
+      else stop();
+    }).catch(() => {});
+    void window.isVisible().then((shown) => { if (active) visible = shown; }).catch(() => {});
+    const poll = setInterval(() => { if (visible) void refreshAnalysis(); }, 60_000);
+    return () => {
+      active = false;
+      unlisten?.();
+      clearInterval(poll);
+    };
   }, []);
 
-  const now = useMemo(() => new Date(), [snapshot, range, updatedAt]);
+  const now = useMemo(() => new Date(), [snapshot, range, checkedAt]);
   const analysis = useMemo(() => aggregateAnalysis(snapshot?.events ?? [], range, now), [snapshot, range, now]);
 
   const { totals, buckets, models } = analysis;
@@ -71,7 +66,7 @@ export default function AnalysisView() {
           ))}
         </div>
         <button type="button" className="analysis-refresh" disabled={loading || !isTauri()}
-          onClick={() => void refresh()} aria-label="Refresh token usage" title="Refresh local sessions">
+          onClick={() => void refreshAnalysis(true)} aria-label="Refresh token usage" title="Refresh local sessions">
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
             <path d="M13 6a5.2 5.2 0 1 0 .1 3M13 2.5V6H9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

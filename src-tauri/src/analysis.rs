@@ -1,179 +1,117 @@
-use serde::Serialize;
-use serde_json::Value;
+use crate::analysis_store::{load_cache, refresh_cache, AnalysisSnapshot};
 use std::{
-    fs,
-    io::{BufRead, BufReader},
-    path::{Path, PathBuf},
+    path::PathBuf,
+    sync::Mutex,
+    time::{Duration, Instant},
 };
+use tauri::Manager;
 
-#[derive(Default, Clone, Copy, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct Tokens {
-    input: u64,
-    cached: u64,
-    output: u64,
-}
-
-impl Tokens {
-    fn parse(value: &Value) -> Self {
-        Self {
-            input: value["input_tokens"].as_u64().unwrap_or(0),
-            cached: value["cached_input_tokens"].as_u64().unwrap_or(0),
-            output: value["output_tokens"].as_u64().unwrap_or(0),
-        }
-    }
-
-    fn delta(self, previous: Self) -> Self {
-        Self {
-            input: self.input.saturating_sub(previous.input),
-            cached: self.cached.saturating_sub(previous.cached),
-            output: self.output.saturating_sub(previous.output),
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TokenEvent {
-    timestamp: String,
-    model: String,
-    session: usize,
-    #[serde(flatten)]
-    tokens: Tokens,
-}
-
-#[derive(Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AnalysisSnapshot {
-    events: Vec<TokenEvent>,
-    skipped_files: usize,
+#[derive(Default)]
+struct RefreshState {
+    loaded: bool,
+    checked_at: Option<Instant>,
 }
 
 #[derive(Default)]
-struct SessionParser {
-    model: String,
-    previous: Option<Tokens>,
+pub struct AnalysisState {
+    snapshot: Mutex<Option<AnalysisSnapshot>>,
+    refresh: tokio::sync::Mutex<RefreshState>,
 }
 
-impl SessionParser {
-    fn consume(&mut self, record: &Value, session: usize) -> Option<TokenEvent> {
-        if record["type"] == "turn_context" {
-            if let Some(model) = record["payload"]["model"].as_str() {
-                self.model = model.to_owned();
-            }
-            return None;
-        }
-        if record["type"] != "event_msg" || record["payload"]["type"] != "token_count" {
-            return None;
-        }
-        let info = &record["payload"]["info"];
-        let total = info
-            .get("total_token_usage")
-            .filter(|value| value.is_object())?;
-        let timestamp = record["timestamp"].as_str()?;
-        let current = Tokens::parse(total);
-        let tokens = match self.previous {
-            Some(previous)
-                if current.input >= previous.input && current.output >= previous.output =>
-            {
-                current.delta(previous)
-            }
-            _ => info
-                .get("last_token_usage")
-                .filter(|value| value.is_object())
-                .map(Tokens::parse)
-                .unwrap_or(current),
-        };
-        self.previous = Some(current);
-        if tokens.input == 0 && tokens.output == 0 {
-            return None;
-        }
-        Some(TokenEvent {
-            timestamp: timestamp.to_owned(),
-            model: if self.model.is_empty() {
-                "Unknown".to_owned()
-            } else {
-                self.model.clone()
-            },
-            session,
-            tokens: Tokens {
-                cached: tokens.cached.min(tokens.input),
-                ..tokens
-            },
+impl AnalysisState {
+    fn cached(&self) -> Result<Option<AnalysisSnapshot>, String> {
+        self.snapshot
+            .lock()
+            .map(|snapshot| snapshot.clone())
+            .map_err(|_| "Unable to read usage cache.".to_owned())
+    }
+
+    fn save(&self, snapshot: AnalysisSnapshot) -> Result<(), String> {
+        *self
+            .snapshot
+            .lock()
+            .map_err(|_| "Unable to update usage cache.".to_owned())? = Some(snapshot);
+        Ok(())
+    }
+}
+
+fn cache_paths(app: &tauri::AppHandle) -> Result<(PathBuf, PathBuf), String> {
+    let home = std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("USERPROFILE")
+                .or_else(|| std::env::var_os("HOME"))
+                .map(|home| PathBuf::from(home).join(".codex"))
         })
-    }
-}
-
-fn scan(directory: &Path, snapshot: &mut AnalysisSnapshot, session: &mut usize) {
-    let entries = match fs::read_dir(directory) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return,
-        Err(_) => {
-            snapshot.skipped_files += 1;
-            return;
-        }
+        .ok_or("Unable to locate local Codex sessions.")?;
+    let home = if home.is_absolute() {
+        home
+    } else {
+        std::env::current_dir()
+            .map_err(|_| "Unable to locate local Codex sessions.")?
+            .join(home)
     };
-    for entry in entries {
-        let Ok(entry) = entry else {
-            snapshot.skipped_files += 1;
-            continue;
-        };
-        let path = entry.path();
-        let Ok(kind) = entry.file_type() else {
-            snapshot.skipped_files += 1;
-            continue;
-        };
-        if kind.is_dir() {
-            scan(&path, snapshot, session);
-        } else if kind.is_file()
-            && path
-                .extension()
-                .is_some_and(|extension| extension == "jsonl")
-        {
-            let Ok(file) = fs::File::open(&path) else {
-                snapshot.skipped_files += 1;
-                continue;
-            };
-            *session += 1;
-            let mut parser = SessionParser::default();
-            for line in BufReader::new(file).lines() {
-                let Ok(line) = line else {
-                    snapshot.skipped_files += 1;
-                    break;
-                };
-                // Skip conversation and tool content before decoding large JSON records.
-                if !line.contains("\"turn_context\"") && !line.contains("\"token_count\"") {
-                    continue;
-                }
-                // Active sessions may end with a partially written JSON line.
-                let Ok(record) = serde_json::from_str::<Value>(&line) else {
-                    continue;
-                };
-                if let Some(event) = parser.consume(&record, *session) {
-                    snapshot.events.push(event);
-                }
-            }
-        }
-    }
+    let home = home.canonicalize().unwrap_or(home);
+    let database = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|_| "Unable to locate the usage cache directory.")?
+        .join("analysis.sqlite");
+    Ok((database, home))
 }
 
 #[tauri::command]
-pub async fn read_analysis() -> Result<AnalysisSnapshot, String> {
-    tauri::async_runtime::spawn_blocking(|| {
-        let home = std::env::var_os("CODEX_HOME")
-            .map(PathBuf::from)
-            .or_else(|| {
-                std::env::var_os("USERPROFILE")
-                    .or_else(|| std::env::var_os("HOME"))
-                    .map(|home| PathBuf::from(home).join(".codex"))
-            })
-            .ok_or("Unable to locate local Codex sessions.")?;
-        let mut snapshot = AnalysisSnapshot::default();
-        let mut session = 0;
-        scan(&home.join("sessions"), &mut snapshot, &mut session);
-        scan(&home.join("archived_sessions"), &mut snapshot, &mut session);
-        Ok(snapshot)
-    })
-    .await
-    .map_err(|_| "Unable to read local Codex sessions.".to_owned())?
+pub async fn read_analysis(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AnalysisState>,
+) -> Result<Option<AnalysisSnapshot>, String> {
+    if let Some(snapshot) = state.cached()? {
+        return Ok(Some(snapshot));
+    }
+    let mut refresh = state.refresh.lock().await;
+    if refresh.loaded {
+        return state.cached();
+    }
+    let (database, home) = cache_paths(&app)?;
+    let snapshot = tauri::async_runtime::spawn_blocking(move || load_cache(&database, &home))
+        .await
+        .map_err(|_| "Unable to load usage cache.".to_owned())?
+        .map_err(|error| {
+            eprintln!("Analysis cache load failed: {error}");
+            "Unable to load usage cache.".to_owned()
+        })?;
+    if let Some(snapshot) = &snapshot {
+        state.save(snapshot.clone())?;
+    }
+    refresh.loaded = true;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+pub async fn refresh_analysis(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AnalysisState>,
+    force: bool,
+) -> Result<AnalysisSnapshot, String> {
+    let requested_at = Instant::now();
+    let mut refresh = state.refresh.lock().await;
+    if refresh.checked_at.is_some_and(|checked| {
+        checked >= requested_at || (!force && checked.elapsed() < Duration::from_secs(60))
+    }) {
+        if let Some(snapshot) = state.cached()? {
+            return Ok(snapshot);
+        }
+    }
+    let (database, home) = cache_paths(&app)?;
+    let snapshot = tauri::async_runtime::spawn_blocking(move || refresh_cache(&database, &home))
+        .await
+        .map_err(|_| "Unable to refresh local usage.".to_owned())?
+        .map_err(|error| {
+            eprintln!("Analysis cache refresh failed: {error}");
+            "Unable to refresh local usage. Try again.".to_owned()
+        })?;
+    state.save(snapshot.clone())?;
+    refresh.loaded = true;
+    refresh.checked_at = Some(Instant::now());
+    Ok(snapshot)
 }

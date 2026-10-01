@@ -1,4 +1,5 @@
 mod analysis;
+mod analysis_store;
 mod usage;
 
 use tauri::{
@@ -65,10 +66,12 @@ fn report(result: tauri::Result<()>) {
 pub fn run() {
     tauri::Builder::default()
         .manage(usage::UsageState::default())
+        .manage(analysis::AnalysisState::default())
         .invoke_handler(tauri::generate_handler![
             mica_enabled,
             usage::read_usage,
-            analysis::read_analysis
+            analysis::read_analysis,
+            analysis::refresh_analysis
         ])
         .setup(|app| {
             let window = app
