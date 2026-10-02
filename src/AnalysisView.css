@@ -1,6 +1,6 @@
 .analysis-view {
-  --activity-color: #26734d;
-  padding: 10px 0 4px;
+  --activity-color: var(--color-accent);
+  padding: var(--space-2) 0 var(--space-1);
   font-variant-numeric: tabular-nums;
 }
 
@@ -12,30 +12,38 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .analysis-ranges {
   display: flex;
-  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  gap: var(--space-1);
 }
 
 .analysis-ranges button,
 .analysis-refresh {
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   background: transparent;
-  color: #707070;
+  color: var(--color-muted);
   font: inherit;
   cursor: pointer;
 }
 
 .analysis-ranges button {
-  padding: 3px 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 24px;
+  padding: var(--space-1);
+  font-size: var(--text-caption);
+  line-height: 16px;
+  white-space: nowrap;
 }
 
 .analysis-ranges button[aria-pressed="true"] {
-  color: #326850;
+  color: var(--color-accent);
   background: #44866b16;
   font-weight: 600;
 }
@@ -43,12 +51,13 @@
 .analysis-refresh {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
 }
 
 .analysis-refresh:hover:enabled,
-.analysis-ranges button:hover {
+.analysis-ranges button:hover:not([aria-pressed="true"]) {
   background: #0000000a;
 }
 
@@ -58,12 +67,16 @@
 }
 
 .analysis-view button:focus-visible {
-  outline: 2px solid #568db1;
+  outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
 .analysis-total {
-  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
 }
 
 .analysis-label,
@@ -73,20 +86,21 @@
 .analysis-chart-axis,
 .analysis-model-detail > span,
 .analysis-message {
-  color: #707070;
-  font-size: 11px;
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+  line-height: 16px;
 }
 
 .analysis-total > div {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .analysis-total strong {
-  font-size: 30px;
-  line-height: 38px;
+  font-size: 28px;
+  line-height: 32px;
   letter-spacing: -.04em;
   font-weight: 600;
 }
@@ -94,47 +108,71 @@
 .analysis-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 10px 0 14px;
-  padding-bottom: 12px;
-  border-bottom: thin solid #00000014;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.analysis-metrics > div {
+  min-width: 0;
 }
 
 .analysis-metrics > div + div {
-  border-left: thin solid #00000014;
-  padding-left: 12px;
+  border-left: 1px solid var(--color-border);
+  padding-left: var(--space-2);
+}
+
+.analysis-metrics dt {
+  line-height: 16px;
 }
 
 .analysis-metrics dd {
-  margin: 2px 0 0;
+  margin: var(--space-1) 0 0;
   font-weight: 600;
-  font-size: 14px;
-}
-
-.analysis-section-heading h2 {
-  font-size: 12px;
-  line-height: 18px;
-  letter-spacing: 0;
-}
-
-.analysis-chart-value {
+  font-size: var(--text-body);
+  line-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.analysis-section-heading h2 {
+  flex-shrink: 0;
+  font-size: var(--text-caption);
+  line-height: 16px;
+  letter-spacing: 0;
+}
+
+.analysis-chart-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
 .analysis-chart {
+  position: relative;
   display: flex;
   align-items: stretch;
-  gap: 3px;
+  gap: var(--space-1);
   height: 64px;
-  margin-top: 10px;
-  border-bottom: thin solid #00000010;
+  margin-top: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: repeating-linear-gradient(to top, transparent 0, transparent 15px, #202c2508 15px, #202c2508 16px);
+}
+
+.analysis-chart-plot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .analysis-chart-day {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
   flex: 1;
   min-width: 0;
   padding: 0;
@@ -144,31 +182,24 @@
 }
 
 .analysis-bar {
-  position: relative;
-  display: block;
-  width: 100%;
-  max-width: 28px;
-  overflow: hidden;
-  border-radius: 3px 3px 0 0;
-  background: var(--activity-color);
+  fill: var(--activity-color);
 }
 
 .analysis-bar[data-empty="true"] {
-  background: #00000018;
+  fill: #00000018;
 }
 
-.analysis-chart-day[data-selected="true"] .analysis-bar,
-.analysis-chart-day:hover .analysis-bar {
-  box-shadow: 0 0 0 1px #00000040;
+.analysis-bar[data-selected="true"] {
+  stroke: #244f3b66;
+  stroke-width: 1px;
 }
 
 .analysis-chart-axis {
-  margin-top: 5px;
-  font-size: 10px;
+  margin-top: var(--space-1);
 }
 
 .analysis-model-heading {
-  margin-top: 16px;
+  margin-top: var(--space-3);
 }
 
 .analysis-models {
@@ -178,29 +209,40 @@
 }
 
 .analysis-models li {
-  padding: 9px 0;
-  border-bottom: thin solid #0000000d;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.analysis-models li:last-child {
+  border-bottom: 0;
+}
+
+.analysis-model-label {
+  font-size: var(--text-body);
+  line-height: 20px;
 }
 
 .analysis-model-label > span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .analysis-model-label strong {
+  flex-shrink: 0;
   font-weight: 600;
 }
 
 .analysis-model-detail {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .analysis-model-track {
-  height: 3px;
+  height: 4px;
   flex: 1;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--radius-control);
   background: #0000000a;
 }
 
@@ -208,18 +250,16 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #44866b;
+  background: var(--color-accent);
 }
 
 .analysis-model-detail > span {
-  min-width: 28px;
+  min-width: 32px;
   text-align: right;
-  font-size: 10px;
 }
 
 .analysis-message {
-  margin: 12px 0 0;
-  line-height: 17px;
+  margin: var(--space-3) 0 0;
 }
 
 .analysis-error {

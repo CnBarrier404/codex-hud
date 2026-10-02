@@ -139,7 +139,8 @@ function App() {
           <span className="account-email" title={usage?.account?.email ?? undefined}>
             {usage?.account?.email ?? "-"}
           </span>
-          <span className="subscription-tier" aria-label="Subscription tier">
+          <span className="subscription-tier" aria-label="Subscription tier"
+            title={subscriptionLabel(usage?.account?.planType)}>
             {subscriptionLabel(usage?.account?.planType)}
           </span>
         </div>
@@ -174,15 +175,9 @@ function App() {
                 )}
               </div>
               <dl className="limit-details">
-                <div className="quota-details">
-                  <div>
-                    <dt>Remaining</dt>
-                    <dd>{remaining === null ? "-" : percent(remaining)}</dd>
-                  </div>
-                  <div>
-                    <dt>Used</dt>
-                    <dd>{window && !expired ? percent(window.usedPercent) : "-"}</dd>
-                  </div>
+                <div className="limit-remaining">
+                  <dt>left</dt>
+                  <dd>{remaining === null ? "—" : percent(remaining)}</dd>
                 </div>
                 <div className="reset-details">
                   <div>
