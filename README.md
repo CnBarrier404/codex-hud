@@ -63,3 +63,21 @@ npm run tauri dev
 ```
 
 Built with Tauri, React, TypeScript, and Rust.
+
+## Releases
+
+Pushing a version tag triggers the release workflow. It builds an unsigned Windows x64 executable and publishes it directly to GitHub Releases as `CodexHUD-vX.Y.Z-win-x64.exe`. The executable uses the system WebView2 Runtime; Codex must also be installed as described above.
+
+To publish a release:
+
+1. Update the version in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` to the same value. Run `npm install --package-lock-only` and `cargo check --manifest-path src-tauri/Cargo.toml` to update the lockfiles.
+2. Add release notes to `CHANGELOG.md` under a heading such as `## 0.2.0`. If no matching section exists, CI uses a short default message.
+3. Commit the version changes, lockfiles, and notes with a message such as `build: bump version to v0.2.0`.
+4. Create an annotated tag on that commit and push the commit and tag:
+
+```powershell
+git tag -a v0.2.0 -m "v0.2.0"
+git push --follow-tags
+```
+
+CI rejects tags that do not match the project versions. Tags such as `v0.2.0-beta.1` publish a prerelease. Only the executable is attached to the Release; GitHub displays its SHA256 digest automatically.
