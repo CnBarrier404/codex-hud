@@ -59,7 +59,6 @@ export default function AnalysisView() {
   const cacheRate = totals.input ? Math.round(totals.cached / totals.input * 100) : 0;
   const peak = Math.max(...buckets.map((bucket) => bucket.tokens), 1);
   const selected = buckets.find((bucket) => bucket.key === selectedBucket);
-  const displayed = selected ?? buckets[buckets.length - 1];
   const bucketLabel = (date: Date) => range === 1 ? hourLabel(date)
     : range === "lifetime" ? monthLabel.format(date) : dateLabel.format(date);
   const hasData = total > 0;
@@ -131,7 +130,7 @@ export default function AnalysisView() {
       <div className="analysis-section-heading">
         <h2>{range === 1 ? "Hourly activity" : range === "lifetime" ? "Monthly activity" : "Daily activity"}</h2>
         <span className="analysis-chart-value" aria-live="polite">
-          {bucketLabel(displayed.date)} · {snapshot ? `${compact.format(displayed.tokens)} tokens` : "—"}
+          {selected && <>{bucketLabel(selected.date)} · {snapshot ? `${compact.format(selected.tokens)} tokens` : "—"}</>}
         </span>
       </div>
       <div className="analysis-chart" ref={chartRef} aria-label={range === "lifetime" ? "Monthly total tokens over local lifetime" : range === 1 ? "Hourly total tokens today" : "Daily total tokens"}>
