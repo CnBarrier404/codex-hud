@@ -30,24 +30,18 @@ export default function AnalysisView() {
   useEffect(() => {
     if (!isTauri()) return;
     let active = true;
-    let visible = false;
     let unlisten: (() => void) | undefined;
     const window = getCurrentWindow();
     void refreshAnalysis();
     void window.onFocusChanged(({ payload: focused }) => {
-      visible = focused;
-      if (focused) void refreshAnalysis();
-      else setSelectedBucket(null);
+      if (!focused) setSelectedBucket(null);
     }).then((stop) => {
       if (active) unlisten = stop;
       else stop();
     }).catch(() => {});
-    void window.isVisible().then((shown) => { if (active) visible = shown; }).catch(() => {});
-    const poll = setInterval(() => { if (visible) void refreshAnalysis(); }, 60_000);
     return () => {
       active = false;
       unlisten?.();
-      clearInterval(poll);
     };
   }, []);
 

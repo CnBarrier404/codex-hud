@@ -3,6 +3,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { clearUsageCache, readUsageCache, saveUsageCache, type UsageSnapshot } from "./usage-cache";
 import AnalysisView from "./AnalysisView";
+import { refreshAnalysis } from "./analysis-cache";
 import "./App.css";
 
 const limits = [
@@ -59,7 +60,6 @@ function App() {
     if (!isTauri()) return;
     let active = true;
     let inFlight = false;
-    let visible = false;
     let unlisten: (() => void) | undefined;
     const window = getCurrentWindow();
     const refresh = async () => {
@@ -89,20 +89,18 @@ function App() {
         inFlight = false;
       }
     };
+    const refreshAll = () => {
+      void refresh();
+      void refreshAnalysis();
+    };
     void window.onFocusChanged(({ payload: focused }) => {
-      visible = focused;
-      if (focused) void refresh();
+      if (focused) refreshAll();
     }).then((stop) => {
       if (active) unlisten = stop;
       else stop();
     }).catch(() => {});
-    void window.isVisible().then((shown) => {
-      if (active) {
-        visible = shown;
-        void refresh();
-      }
-    }).catch(() => { void refresh(); });
-    const poll = setInterval(() => { if (visible) void refresh(); }, 60_000);
+    refreshAll();
+    const poll = setInterval(refreshAll, 60_000);
     const clock = setInterval(() => setNow(Date.now()), 1_000);
     return () => {
       active = false;
