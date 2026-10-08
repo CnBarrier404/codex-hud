@@ -5,6 +5,7 @@ export type TokenEvent = {
   input: number;
   cached: number;
   output: number;
+  durationMs?: number | null;
 };
 export type AnalysisSnapshot = { events: TokenEvent[]; skippedFiles: number };
 export type AnalysisRange = 1 | 7 | 30 | "lifetime";
@@ -48,12 +49,19 @@ export function aggregateAnalysis(events: TokenEvent[], range: AnalysisRange, no
   const totals = emptyTotals();
   const models = new Map<string, Totals>();
   const sessions = new Set<number>();
+  const speed = { output: 0, durationMs: 0, samples: 0 };
   for (const { event, timestamp } of validEvents) {
     if (timestamp < start.getTime()) continue;
     const bucket = buckets.find((bucket) => timestamp >= bucket.date.getTime() && timestamp < bucket.end.getTime());
     if (!bucket) continue;
     bucket.tokens += event.input + event.output;
     add(totals, event);
+    if (Number.isFinite(event.output) && event.output >= 200 && event.durationMs != null
+      && Number.isFinite(event.durationMs) && event.durationMs >= 1_000 && event.durationMs <= 3_600_000) {
+      speed.output += event.output;
+      speed.durationMs += event.durationMs;
+      speed.samples += 1;
+    }
     sessions.add(event.session);
     const model = models.get(event.model) ?? emptyTotals();
     add(model, event);
@@ -61,6 +69,7 @@ export function aggregateAnalysis(events: TokenEvent[], range: AnalysisRange, no
   }
   return {
     buckets, totals, sessions: sessions.size,
+    speed: { samples: speed.samples, tokensPerSecond: speed.durationMs > 0 ? speed.output * 1_000 / speed.durationMs : null },
     models: [...models.entries()].map(([name, tokens]) => ({ name, ...tokens }))
       .sort((a, b) => (b.input + b.output) - (a.input + a.output)),
   };

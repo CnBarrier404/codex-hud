@@ -331,6 +331,7 @@ dependencies = [
 name = "codex-hud"
 version = "0.1.0-alpha.1"
 dependencies = [
+ "chrono",
  "rusqlite",
  "serde",
  "serde_json",

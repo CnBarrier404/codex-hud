@@ -48,7 +48,10 @@ export default function AnalysisView() {
   const now = useMemo(() => new Date(), [snapshot, range, checkedAt]);
   const analysis = useMemo(() => aggregateAnalysis(snapshot?.events ?? [], range, now), [snapshot, range, now]);
 
-  const { totals, buckets, models } = analysis;
+  const { totals, buckets, models, speed } = analysis;
+  const speedHelp = `Estimated output tokens / total request time, including first-token wait. Excludes tool execution where identifiable. Only requests with at least 200 output tokens and 1 second to 1 hour of estimated time count. ${exact.format(speed.samples)} eligible requests in this period.`;
+  const speedValue = speed.tokensPerSecond == null ? "—"
+    : `≈ ${speed.tokensPerSecond >= 1 ? Math.round(speed.tokensPerSecond) : speed.tokensPerSecond.toFixed(1)}`;
   const total = totals.input + totals.output;
   const cacheRate = totals.input ? Math.round(totals.cached / totals.input * 100) : 0;
   const peak = Math.max(...buckets.map((bucket) => bucket.tokens), 1);
@@ -112,8 +115,14 @@ export default function AnalysisView() {
       </div>
 
       <div className="analysis-total">
-        <span className="analysis-label">Total tokens</span>
-        <div><strong title={exact.format(total)}>{snapshot ? compact.format(total) : "—"}</strong></div>
+        <div className="analysis-total-tokens">
+          <span className="analysis-label">Total tokens</span>
+          <strong title={exact.format(total)}>{snapshot ? compact.format(total) : "—"}</strong>
+        </div>
+        <div className="analysis-speed" title={speedHelp} tabIndex={0} aria-label={`Average output speed: ${speedValue} tok/s. ${speedHelp}`}>
+          <span className="analysis-label">Avg tok/s</span>
+          <strong>{speedValue}</strong>
+        </div>
       </div>
       <dl className="analysis-metrics">
         <div><dt>Input</dt><dd title={exact.format(totals.input)}>{snapshot ? compact.format(totals.input) : "—"}</dd></div>
